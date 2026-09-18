@@ -58,6 +58,46 @@ node test/elo.test.mjs            # Elo expected-score symmetry + K application
    (`https://<user>.github.io/Fable-5-Soccer-Game/`) as a redirect URL so magic links
    land back in the game.
 
+## Seeding the ladder
+
+An empty `teams` table isn't just a blank leaderboard: placement rates a new team
+against the *nearest-Elo teams in the table*, so with nothing in it, publishing places
+you against no one. `scripts/seed-league.mjs` fills it with seven house teams — the four
+builder presets plus Tiki-Taka, Counter Attack and Sunday League — then plays a
+round-robin so the ladder opens with real ratings, W-D-L and replayable history.
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-league.mjs           # seed
+SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-league.mjs --reset   # wipe and reseed
+```
+
+The key is in **Settings → API → service_role**. It bypasses RLS, so pass it on the
+command line only — never commit it, never put it in CI. Seeds are fixed, so a reseed
+reproduces the identical ladder.
+
+Each house team needs a bot auth user, because `teams.owner` is a NOT NULL unique FK to
+`profiles.id`, itself a FK to `auth.users.id`. They own usernames prefixed `house-` so
+the ladder doesn't read as having players it doesn't have. `--reset` deletes those users
+and the FK cascade clears their profiles, teams and matches.
+
+Match results go through the same `apply_match_result` RPC that `play-match` uses, so
+there's no second copy of the Elo or match-writing logic. `test/team.test.mjs` validates
+every house config against the schema and point budget, so a malformed archetype fails
+locally rather than against live data.
+
+## Keeping the project awake
+
+Free-tier Supabase projects pause after ~7 days with no requests, which takes the whole
+AI League offline — DNS stops resolving — until you restore it by hand from the
+dashboard. `.github/workflows/keep-supabase-awake.yml` pings the REST API every other
+day to reset that clock. It needs no secret (it reads the public anon key straight out
+of `js/supabase-config.js`) and **fails the run on a non-200**, so a paused project
+emails you instead of failing quietly.
+
+Two things it can't do for you: GitHub disables scheduled workflows after 60 days with
+no repo activity — re-enable from the Actions tab — and scheduled workflows only run
+from the default branch, so the file has to be on `main` to fire at all.
+
 ### Credits
 
 Player sprites from the [Kenney Sports Pack](https://opengameart.org/content/sports-pack-350) (CC0).
