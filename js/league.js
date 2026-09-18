@@ -18,8 +18,18 @@ function el(tag, className, text) {
 let user = null;   // signed-in Supabase user (or null)
 let myTeam = null; // the user's published team row (or null)
 
-function setStatus(text) {
-  $('league-status').textContent = text || '';
+function setStatus(text, isError = false) {
+  const box = $('league-status');
+  box.textContent = text || '';
+  box.classList.toggle('league-status-error', Boolean(text) && isError);
+}
+
+// A dead/unreachable backend surfaces as a bare "TypeError: Failed to fetch",
+// which tells a player nothing. Everything else is already a real message.
+function errorText(e) {
+  return /failed to fetch|networkerror|load failed/i.test(e.message)
+    ? "Can't reach the league server — check your connection; the backend may be down."
+    : e.message;
 }
 
 // ---------- Auth area ----------
@@ -50,7 +60,7 @@ async function renderAuth() {
       await net.signIn(email.value.trim());
       setStatus('Check your email for the sign-in link, then reopen this page.');
     } catch (e) {
-      setStatus(e.message);
+      setStatus(errorText(e), true);
     }
   });
   box.append(email, send);
@@ -123,7 +133,7 @@ async function renderBoard() {
           );
           await renderBoard(); // ratings moved
         } catch (e) {
-          setStatus(e.message);
+          setStatus(errorText(e), true);
           btn.disabled = false;
         }
       });
@@ -246,6 +256,8 @@ async function refresh() {
     await renderAuth();
     await renderBoard();
   } catch (e) {
-    setStatus(e.message);
+    // Clear the board: a failed load must not sit under "Loading…" forever.
+    $('league-board').replaceChildren();
+    setStatus(errorText(e), true);
   }
 }
