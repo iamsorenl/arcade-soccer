@@ -14,6 +14,11 @@ import { eloDelta, resultFromScore } from "../../../js/elo.js";
 
 const CHALLENGES_PER_HOUR = 10; // per-team hourly rate limit (both modes)
 const PLACEMENT_COUNT = 5;
+// sqlstate apply_match_result raises when the cap is reached (0002). The limit
+// is enforced in the database, inside the same transaction as the insert —
+// checking it here first would only be a second copy to drift from, and a
+// count-then-act check in JS is exactly what parallel requests walk through.
+const RATE_LIMITED = "PT429";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +44,8 @@ type TeamRow = {
 
 // Simulate one match with a server-generated seed and persist it atomically.
 // Mutates a.elo / b.elo so a placement run rates each match off live ratings.
+// Returns null when a's hourly cap is already full — the caller decides
+// whether that's a 429 or just the end of a placement run.
 async function playOne(service: ReturnType<typeof createClient>, a: TeamRow, b: TeamRow) {
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   const { score } = simulateMatch(a.config, b.config, seed);
@@ -58,8 +65,12 @@ async function playOne(service: ReturnType<typeof createClient>, a: TeamRow, b: 
     p_engine_version: ENGINE_VERSION,
     p_config_a: a.config,
     p_config_b: b.config,
+    p_limit: CHALLENGES_PER_HOUR,
   });
-  if (error) throw new Error(`apply_match_result: ${error.message}`);
+  if (error) {
+    if (error.code === RATE_LIMITED) return null;
+    throw new Error(`apply_match_result: ${error.message}`);
+  }
 
   a.elo += deltaA;
   b.elo += deltaB;
@@ -104,19 +115,8 @@ Deno.serve(async (req) => {
   const check = validateTeam(mine.config);
   if (!check.ok) return json({ error: "invalid team config", details: check.errors }, 422);
 
-  // Per-team hourly rate limit on caller-initiated matches, both modes —
-  // placement runs 5 sims per call and moves opponents' ratings too. Fails
-  // closed: a broken count query must not skip the limit.
-  const hourAgo = new Date(Date.now() - 3600_000).toISOString();
-  const { count, error: countErr } = await service
-    .from("matches")
-    .select("id", { count: "exact", head: true })
-    .eq("team_a", teamId)
-    .gte("created_at", hourAgo);
-  if (countErr) return json({ error: "rate limit check failed, try again" }, 500);
-  if ((count ?? 0) >= CHALLENGES_PER_HOUR) {
-    return json({ error: `rate limit: ${CHALLENGES_PER_HOUR} matches/hour` }, 429);
-  }
+  const capped = () =>
+    json({ error: `rate limit: ${CHALLENGES_PER_HOUR} matches/hour` }, 429);
 
   if (mode === "challenge") {
     if (!opponentId || opponentId === teamId) {
@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
     }
 
     const result = await playOne(service, mine as TeamRow, opp as TeamRow);
+    if (!result) return capped();
     return json({ mode, matches: [result], elo: mine.elo });
   }
 
@@ -150,9 +151,18 @@ Deno.serve(async (req) => {
     return json({ mode, matches: [], elo: mine.elo, note: "no opponents yet" });
   }
 
+  // The cap is checked per match, not once up front: a call made at 9/10 used
+  // to run all 5 and land at 14. Now the 10th lands and the rest stop, and a
+  // short run is a normal 200 with however many actually happened.
   const results = [];
   for (const opp of candidates) {
-    results.push(await playOne(service, mine as TeamRow, opp as TeamRow));
+    const result = await playOne(service, mine as TeamRow, opp as TeamRow);
+    if (!result) break;
+    results.push(result);
   }
-  return json({ mode, matches: results, elo: mine.elo });
+  if (results.length === 0) return capped();
+  const note = results.length < candidates.length
+    ? `stopped at the ${CHALLENGES_PER_HOUR}/hour cap`
+    : undefined;
+  return json({ mode, matches: results, elo: mine.elo, note });
 });

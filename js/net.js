@@ -12,8 +12,11 @@ export function isConfigured() {
 
 async function getClient() {
   if (!client) {
+    // pinned to an exact version, not a floating "@2" major-range: esm.sh
+    // resolves floating ranges at request time, so the served bytes could
+    // change with no change to this repo. bumping this is a deliberate act.
     const { createClient } = await import(
-      'https://esm.sh/@supabase/supabase-js@2'
+      'https://esm.sh/@supabase/supabase-js@2.116.0'
     );
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
@@ -98,7 +101,9 @@ export async function fetchLeaderboard(limit = 50) {
   return unwrap(
     await supa
       .from('teams')
-      .select('id, name, elo, wins, draws, losses, owner, config, profiles(username)')
+      // owner (auth.users UUID) deliberately excluded: this row is public
+      // and nothing in the UI reads it (league.js keys off t.id, not owner).
+      .select('id, name, elo, wins, draws, losses, config, profiles(username)')
       .order('elo', { ascending: false })
       .limit(limit)
   );

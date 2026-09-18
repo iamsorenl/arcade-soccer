@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { ATTR_BUDGET, PRESETS, attrTotal, defaultTeam, validateTeam } from '../js/team.js';
 import { simulateMatch } from '../js/engine.js';
+import { HOUSE_TEAMS } from '../scripts/seed-league.mjs';
 
 // Defaults and every preset must validate within the budget.
 assert.ok(validateTeam(defaultTeam()).ok, 'default team must validate');
@@ -11,6 +12,20 @@ for (const [key, preset] of Object.entries(PRESETS)) {
   const res = validateTeam(preset);
   assert.ok(res.ok, `preset ${key}: ${res.errors.join('; ')}`);
   assert.ok(attrTotal(preset.players) <= ATTR_BUDGET, `preset ${key} over budget`);
+}
+
+// Seeded house teams go straight into the live ladder, so they must clear the
+// same bar — an invalid one would be rejected as an opponent by play-match.
+assert.ok(HOUSE_TEAMS.length > 0, 'house roster must not be empty');
+const slugs = new Set();
+for (const { slug, config } of HOUSE_TEAMS) {
+  const res = validateTeam(config);
+  assert.ok(res.ok, `house ${slug}: ${res.errors.join('; ')}`);
+  assert.ok(attrTotal(config.players) <= ATTR_BUDGET, `house ${slug} over budget`);
+  // slug doubles as the profiles.username, which is unique and 3-20 chars.
+  assert.ok(!slugs.has(slug), `duplicate house slug ${slug}`);
+  assert.ok(slug.length >= 3 && slug.length <= 20, `house slug ${slug} must be 3-20 chars`);
+  slugs.add(slug);
 }
 
 // Over-budget config rejected.

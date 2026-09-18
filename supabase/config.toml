@@ -1,7 +1,12 @@
 # Minimal Supabase CLI config. project_id is a local folder label; linking to
 # your real project happens via `supabase link --project-ref <ref>`.
-project_id = "fable-5-soccer-game"
+project_id = "arcade-soccer"
 
 [functions.play-match]
 # The function checks auth itself, but keep the gateway JWT check on too.
+verify_jwt = true
+
+[functions.delete-account]
+# Same reasoning, and more so: the function derives the account to delete from
+# the session, so an unauthenticated request has nothing to do here.
 verify_jwt = true
