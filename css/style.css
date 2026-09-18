@@ -462,6 +462,10 @@ body {
   color: #69dd8a;
 }
 
+.league-status-error {
+  color: #ff8b6b;
+}
+
 .league-panel {
   max-height: 40vh;
   overflow-y: auto;

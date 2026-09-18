@@ -1,0 +1,39 @@
+name: Keep Supabase awake
+
+# Free-tier Supabase projects pause after ~7 days with no requests, which takes
+# the whole AI League offline until someone restores it by hand. Any request
+# resets that clock, so ping the REST API every two days.
+#
+# No secrets: the anon key is public by design (RLS is the security boundary)
+# and already lives in js/supabase-config.js, which is also the single source
+# of truth here — no second copy to drift out of sync.
+#
+# Caveat: GitHub disables scheduled workflows after 60 days with no repo
+# activity. If this repo goes quiet that long, re-enable it from the Actions
+# tab (or hit "Run workflow") and the schedule resumes.
+
+on:
+  schedule:
+    - cron: '17 7 */2 * *' # 07:17 UTC, every other day
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping the REST API
+        run: |
+          URL=$(grep -o 'https://[a-z0-9]*\.supabase\.co' js/supabase-config.js)
+          KEY=$(grep -o 'eyJ[A-Za-z0-9._-]*' js/supabase-config.js)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "No Supabase project configured — nothing to keep awake."
+            exit 0
+          fi
+          code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' \
+            "$URL/rest/v1/teams?select=id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "$URL -> HTTP $code"
+          # Fail loudly: a non-200 means the project is paused, deleted, or the
+          # key rotated, and a failed run emails you instead of failing quietly.
+          [ "$code" = "200" ]
