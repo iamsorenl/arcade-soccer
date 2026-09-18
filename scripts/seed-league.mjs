@@ -27,7 +27,7 @@ import { eloDelta, resultFromScore } from '../js/elo.js';
 import { FORMATIONS, defaultTeam, validateTeam } from '../js/team.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EMAIL_DOMAIN = 'fable5-house.invalid'; // RFC 2606 reserved: never deliverable
+const EMAIL_DOMAIN = 'arcade-soccer-house.invalid'; // RFC 2606 reserved: never deliverable
 
 function house(slug, name, overrides) {
   return { slug, config: Object.assign(defaultTeam(name), overrides) };

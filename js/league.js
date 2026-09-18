@@ -3,6 +3,7 @@
 // re-run the deterministic sim client-side from the stored seed + configs.
 
 import { ENGINE_VERSION } from './engine.js';
+import { validateTeam } from './team.js';
 import * as net from './net.js';
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +51,23 @@ async function renderAuth() {
     box.append(out);
     return;
   }
+
+  const notice = el(
+    'div',
+    'league-loading',
+    'Signing in and publishing a team makes your username, team, rating, and match history public to anyone. '
+      + 'Your email is only used to send the sign-in link and is never shown to other users. '
+  );
+  const privacyLink = document.createElement('a');
+  // GitHub's rendered view, not the relative path: .nojekyll means Pages
+  // serves raw markdown, which browsers download instead of displaying.
+  privacyLink.href =
+    'https://github.com/iamsorenl/arcade-soccer/blob/main/PRIVACY.md';
+  privacyLink.textContent = 'Privacy notice';
+  privacyLink.target = '_blank';
+  privacyLink.rel = 'noopener';
+  notice.append(privacyLink);
+  box.append(notice);
 
   const email = el('input', 'league-email');
   email.type = 'email';
@@ -116,6 +134,10 @@ async function renderBoard() {
     // Anyone can play any published team — unranked scouting/fun.
     const play = el('button', 'btn league-challenge', 'Play');
     play.addEventListener('click', () => {
+      if (!validateTeam(t.config).ok) {
+        setStatus(`${t.name}'s saved team config is invalid or from an incompatible version — can't start that match.`, true);
+        return;
+      }
       $('league').classList.add('hidden');
       onPlayCb(t.config, t.name);
     });
@@ -178,6 +200,10 @@ async function renderHistory(team) {
     const cell = el('td');
     const replay = el('button', 'btn league-challenge', 'Replay');
     replay.addEventListener('click', () => {
+      if (!validateTeam(m.config_a).ok || !validateTeam(m.config_b).ok) {
+        setStatus("This match's stored team config is invalid or from an incompatible version — can't replay it.", true);
+        return;
+      }
       $('league').classList.add('hidden');
       onReplayCb(
         m.config_a, m.config_b, m.seed,

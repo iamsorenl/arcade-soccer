@@ -1,11 +1,8 @@
-# Fable-5-Soccer-Game
-How far can Fable 5 go!
-
-## Arcade Soccer
+# Arcade Soccer
 
 A 4v4 top-down arcade soccer game — vanilla JS + Canvas, no dependencies, no build step.
 
-**Play it:** https://iamsorenl.github.io/Fable-5-Soccer-Game/
+**Play it:** https://iamsorenl.github.io/arcade-soccer/
 
 Single player vs AI (Easy/Normal/Hard) or local 2-player on one keyboard.
 
@@ -55,7 +52,7 @@ node test/elo.test.mjs            # Elo expected-score symmetry + K application
    `js/supabase-config.js` (the anon key is public by design — RLS is the security
    boundary), commit, and push. GitHub Pages serves the rest.
 4. In **Authentication → URL Configuration**, add your Pages URL
-   (`https://<user>.github.io/Fable-5-Soccer-Game/`) as a redirect URL so magic links
+   (`https://<user>.github.io/arcade-soccer/`) as a redirect URL so magic links
    land back in the game.
 
 ## Seeding the ladder
@@ -97,6 +94,14 @@ emails you instead of failing quietly.
 Two things it can't do for you: GitHub disables scheduled workflows after 60 days with
 no repo activity — re-enable from the Actions tab — and scheduled workflows only run
 from the default branch, so the file has to be on `main` to fire at all.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md) for what data the app stores and who sees it.
 
 ### Credits
 

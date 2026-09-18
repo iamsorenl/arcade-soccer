@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arcade Soccer</title>
+  <!--
+    GitHub Pages serves static files only and can't send custom HTTP response
+    headers, so a real Content-Security-Policy header isn't possible here —
+    this <meta> tag is the only way to apply one. No inline <script> or
+    inline event handlers exist in this codebase, so no 'unsafe-inline' is
+    needed for scripts. esm.sh is allowed because js/net.js dynamically
+    imports supabase-js from it; the Supabase project URL is allowed for the
+    actual API/auth/function calls it makes.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; connect-src 'self' https://opiallhyhgfjlsfgzmmm.supabase.co https://esm.sh; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'none'">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>&#9917;</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -206,6 +216,7 @@
           <li><strong>Replays</strong> — the sim is deterministic: from the stored seed and both configs, your browser re-runs any ranked match move-for-move. Use match history to scout why you lost.</li>
           <li><strong>Play</strong> — the Play button on any leaderboard row starts an unranked match: you, against their published team.</li>
           <li><strong>Updating</strong> — re-publishing uploads your latest tuning; old matches keep the config snapshot they were actually played with.</li>
+          <li><strong>Bot teams</strong> — leaderboard owners starting with <em>house-</em> (like house-default or house-wall) are built-in bot opponents seeded to populate the ladder, not real players.</li>
         </ul>
 
         <h2>Under the hood</h2>

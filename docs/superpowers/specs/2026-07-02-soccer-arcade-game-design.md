@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-02
 **Status:** Approved
-**Hosting:** GitHub Pages at `https://iamsorenl.github.io/Fable-5-Soccer-Game/`
+**Hosting:** GitHub Pages at `https://iamsorenl.github.io/arcade-soccer/`
 
 ## Overview
 
@@ -118,4 +118,4 @@ pure physics functions allow isolated sanity checks.
 ## Deployment
 
 Push to `main`; enable GitHub Pages (deploy from branch `main`, root `/`).
-Live at `https://iamsorenl.github.io/Fable-5-Soccer-Game/`.
+Live at `https://iamsorenl.github.io/arcade-soccer/`.
