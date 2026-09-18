@@ -436,7 +436,28 @@ body {
 .league-auth {
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+/* The sign-in disclosure sits on its own line above the email row: as a plain
+   flex child it stretched the row and pushed the input to the edge. */
+.league-privacy-note {
+  /* The box must stay a full flex line or the email row fits beside it and
+     the note never gets its own line — so constrain the TEXT with padding
+     instead of max-width, which would shrink the box and undo the break. */
+  flex-basis: 100%;
+  padding: 0 max(16px, calc((100% - 640px) / 2));
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.league-privacy-note a {
+  color: #7cc4ff; /* default link blue is unreadable on this background */
 }
 
 .league-user {

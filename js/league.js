@@ -54,7 +54,7 @@ async function renderAuth() {
 
   const notice = el(
     'div',
-    'league-loading',
+    'league-privacy-note',
     'Signing in and publishing a team makes your username, team, rating, and match history public to anyone. '
       + 'Your email is only used to send the sign-in link and is never shown to other users. '
   );
