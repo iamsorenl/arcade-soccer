@@ -1,0 +1,13 @@
+-- publishTeam() upserts on teams.owner. PostgREST compiles that to
+-- INSERT ... ON CONFLICT (owner) DO UPDATE SET owner=..., name=..., config=...,
+-- version=..., and Postgres checks column privileges for the whole statement
+-- up front, not per branch. 0001 granted owner on INSERT but not on UPDATE, so
+-- every publish failed with "permission denied for table teams" -- including
+-- the very first one, where the UPDATE branch never actually runs.
+--
+-- Granting UPDATE on owner concedes nothing. The "update own team" policy is
+-- using (auth.uid() = owner) with check (auth.uid() = owner), so a user can
+-- only touch rows they already own and can only leave owner set to themselves.
+-- elo, wins, draws and losses stay off the grant list and remain service-role
+-- only, which is what 0001 was actually protecting.
+grant update (owner) on public.teams to authenticated;
