@@ -1,8 +1,9 @@
 name: Keep Supabase awake
 
-# Free-tier Supabase projects pause after ~7 days with no requests, which takes
-# the whole AI League offline until someone restores it by hand. Any request
-# resets that clock, so ping the REST API every two days.
+# Free-tier Supabase projects pause after ~7 days idle, which takes the whole
+# AI League offline until someone restores it by hand. A plain REST read still
+# drew an inactivity warning, so this calls the keepalive() RPC (migration
+# 0004), which writes a timestamp, every two days.
 #
 # No secrets: the anon key is public by design (RLS is the security boundary)
 # and already lives in js/supabase-config.js, which is also the single source
@@ -22,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ping the REST API
+      - name: Write a keepalive timestamp
         run: |
           URL=$(grep -o 'https://[a-z0-9]*\.supabase\.co' js/supabase-config.js)
           KEY=$(grep -o 'eyJ[A-Za-z0-9._-]*' js/supabase-config.js)
@@ -30,9 +31,10 @@ jobs:
             echo "No Supabase project configured — nothing to keep awake."
             exit 0
           fi
-          code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' \
-            "$URL/rest/v1/teams?select=id&limit=1" \
-            -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' -X POST \
+            "$URL/rest/v1/rpc/keepalive" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" -d '{}')
           echo "$URL -> HTTP $code"
           # Fail loudly: a non-200 means the project is paused, deleted, or the
           # key rotated, and a failed run emails you instead of failing quietly.
