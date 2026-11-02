@@ -1,3 +1,8 @@
 # Supabase CLI local artifacts
 supabase/.temp/
 supabase/.branches/
+
+# Local secrets and backups (self-host move)
+.env
+server/**/.env
+backups/
