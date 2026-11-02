@@ -115,7 +115,7 @@ match writer.
   - A malformed JSON body gets a 400.
 - [ ] **Step 2:** Run `node --test server/sim/sim.test.mjs`. Expected: FAIL.
 - [ ] **Step 3:** Implement `sim.mjs` with `node:http`. No dependencies.
-- [ ] **Step 4:** Run `node --test server/sim/` and `node test/determinism.test.mjs`. Expected: all pass.
+- [ ] **Step 4:** Run `node --test server/sim/*.test.mjs` and `node test/determinism.test.mjs`. Expected: all pass.
 - [ ] **Step 5: Commit.** `git commit -m "Add the sim service that runs the game engine for the API"`
 
 ### Task 3: Go API core and auth (Soren writes)
@@ -327,7 +327,7 @@ interfaces for test fakes, and table-driven tests with `httptest`.
 - Create: `server/sim/Dockerfile` (`node:24-alpine`, copies `js/` + `server/sim/`, build context = repo root)
 - Create: `.github/workflows/league-images.yml`. On push to main touching `server/**` or `js/**`, it runs these against a `postgres:17` service container:
   - `go test ./...`
-  - `node --test server/sim/`
+  - `node --test server/sim/*.test.mjs`
   - `node test/*.test.mjs`
 
   Then it builds and pushes `ghcr.io/iamsorenl/arcade-soccer-api` and `-sim`, tagged `:sha-<short>` and `:latest`.
