@@ -25,6 +25,7 @@ match writer.
 
 ## Global Constraints
 
+- Local test/dev database: Docker container `league-pg` (`postgres:17`, `127.0.0.1:55432`, password `dev`, db `league_test`), so tests run the same major version as prod. Laptop Homebrew Postgres is 14 and cannot load 17 dumps.
 - Hourly match cap: 10 per team (`CHALLENGES_PER_HOUR`). Placement: 5 matches vs nearest Elo.
 - Rate-limit sqlstate raised by `apply_match_result`: `PT429`.
 - `teams.config` fence: `jsonb_typeof(config) = 'object' and pg_column_size(config) <= 8192`.
@@ -91,7 +92,7 @@ match writer.
   - the 11th call fails with sqlstate `PT429`
   - `teams.wins + draws + losses` = 10 for that team
   - deleting the user leaves 0 rows in `profiles`, `teams` and `matches`
-- [ ] **Step 2:** Run `TEST_DATABASE_URL=postgres://localhost/league_test bash server/db/schema_test.sh`. Expected: FAIL (no schema.sql yet).
+- [ ] **Step 2:** Run `TEST_DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/league_test bash server/db/schema_test.sh`. Expected: FAIL (no schema.sql yet).
 - [ ] **Step 3:** Write `schema.sql`.
 - [ ] **Step 4:** Run the test again. Expected: `schema ok`.
 - [ ] **Step 5: Commit.** `git commit -m "Add the self-hosted League schema"`
@@ -171,7 +172,7 @@ interfaces for test fakes, and table-driven tests with `httptest`.
   - `TestVerifyExpired`: a token with `expires_at` in the past → 400.
   - `TestMeRequiresSession`: no header, a garbage token, or an expired session → 401.
   - `TestSignout`: after signout, the same token → 401 on `/me`.
-- [ ] **Step 2:** Run `cd server/api && TEST_DATABASE_URL=postgres://localhost/league_test go test ./...`. Expected: FAIL (compile errors).
+- [ ] **Step 2:** Run `cd server/api && TEST_DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/league_test go test ./...`. Expected: FAIL (compile errors).
 - [ ] **Step 3:** Soren implements `main.go`, `app.go`, `db.go`, `mail.go` and `auth.go`, test by test, with the agent reviewing each one.
 - [ ] **Step 4:** Run the tests. Expected: PASS. `go vet ./...` is clean.
 - [ ] **Step 5: Commit.** `git commit -m "Add the Go API with magic-link sign-in and sessions"`
@@ -349,7 +350,7 @@ The script:
 3. `pg_restore --data-only -t profiles -t teams -t matches` from the full dump into `DST_URL`.
 4. Prints the row counts of the source dump next to the destination's.
 
-- [ ] **Step 1:** Run it against `postgres://localhost/league_test` (schema applied).
+- [ ] **Step 1:** Run it against `postgres://postgres:dev@127.0.0.1:55432/league_test` (schema applied).
   - Expected: counts match for users, profiles, teams and matches, and `exit 0`.
   - The 7 `house-*` teams are present.
 - [ ] **Step 2:** Plant a case-duplicate row in a copy of the CSV. Expected: the script stops before loading anything.

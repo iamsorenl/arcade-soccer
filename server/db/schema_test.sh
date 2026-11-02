@@ -3,7 +3,7 @@
 # raises PT429 on the 11th match, W/D/L add up, deleting a user cascades.
 # WIPES schema public in TEST_DATABASE_URL — point it at a throwaway database.
 #
-# Usage: TEST_DATABASE_URL=postgres://localhost/league_test bash server/db/schema_test.sh
+# Usage: TEST_DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/league_test bash server/db/schema_test.sh
 set -euo pipefail
 : "${TEST_DATABASE_URL:?set TEST_DATABASE_URL to a throwaway database}"
 cd "$(dirname "$0")"
