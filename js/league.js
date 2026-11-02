@@ -25,12 +25,10 @@ function setStatus(text, isError = false) {
   box.classList.toggle('league-status-error', Boolean(text) && isError);
 }
 
-// A dead/unreachable backend surfaces as a bare "TypeError: Failed to fetch",
-// which tells a player nothing. Everything else is already a real message.
+// net.js turns "server unreachable / down" into LeagueOffline, whose message
+// is the maintenance notice; everything else is a real message from the server.
 function errorText(e) {
-  return /failed to fetch|networkerror|load failed/i.test(e.message)
-    ? "Can't reach the league server — check your connection; the backend may be down."
-    : e.message;
+  return e.message;
 }
 
 // ---------- Auth area ----------
@@ -230,7 +228,7 @@ async function renderHistory(team) {
 // one-line status string for the builder to display; throws on failure.
 export async function publishFlow(team) {
   if (!net.isConfigured()) {
-    throw new Error('Online league not configured (fill in js/supabase-config.js).');
+    throw new Error('Online league not configured (fill in js/league-config.js).');
   }
   const u = await net.getUser();
   if (!u) throw new Error('Sign in from the League screen first.');
@@ -275,7 +273,7 @@ async function refresh() {
   if (!net.isConfigured()) {
     $('league-auth').replaceChildren();
     $('league-board').replaceChildren();
-    setStatus('Online league not configured yet — fill in js/supabase-config.js.');
+    setStatus('Online league not configured yet — fill in js/league-config.js.');
     return;
   }
   try {
