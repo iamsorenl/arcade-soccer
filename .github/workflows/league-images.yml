@@ -1,0 +1,84 @@
+name: League server
+
+# Tests the League server (schema, sim, Go API, frontend data layer) on every
+# PR and push to main; on main, also builds the api + sim images and pushes
+# them to GHCR, where the k3s cluster on the home server pulls them from.
+
+on:
+  pull_request:
+    paths: ['server/**', 'js/**', 'test/**', '.github/workflows/league-images.yml']
+  push:
+    branches: [main]
+    paths: ['server/**', 'js/**', 'test/**', '.github/workflows/league-images.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: league_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:dev@localhost:5432/league_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Game + data-layer tests
+        run: for t in test/*.test.mjs; do node "$t"; done
+      - name: Sim tests
+        run: node --test server/sim/*.test.mjs
+      - name: Schema test
+        run: bash server/db/schema_test.sh
+      - name: Go tests
+        working-directory: server
+        # -p 1: every API test package resets the same test database.
+        run: go vet ./... && go test -race -p 1 ./...
+
+  images:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Short sha
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: server
+          file: server/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/iamsorenl/arcade-soccer-api:latest
+            ghcr.io/iamsorenl/arcade-soccer-api:sha-${{ steps.sha.outputs.short }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/sim/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/iamsorenl/arcade-soccer-sim:latest
+            ghcr.io/iamsorenl/arcade-soccer-sim:sha-${{ steps.sha.outputs.short }}

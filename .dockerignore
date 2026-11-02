@@ -1,0 +1,7 @@
+.git
+.env
+**/.env
+backups
+supabase
+docs
+assets

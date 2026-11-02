@@ -208,6 +208,14 @@ Existing users sign in again once after cutover. Their accounts, teams, and Elo 
 - **Email matching:** emails are stored trimmed and lowercased. The migration script
   checks for case-only duplicates before loading and stops if it finds any.
 
+- **Accepted tradeoff: links are not bound to the browser that asked for them.** A
+  link requested on the laptop can be opened on the phone. The flip side: someone could
+  send a person a sign-in link for the sender's own account (login CSRF). The impact is
+  small here, since the League shows the signed-in email and an account holds only a
+  game team. Binding links to the requesting browser (a nonce in localStorage) would
+  fix it, at the cost of cross-device sign-in. Revisit if accounts ever hold anything
+  more valuable.
+
 ## Left to the builder
 
 The Go package layout, the router (standard library is fine), the migration tool or plain

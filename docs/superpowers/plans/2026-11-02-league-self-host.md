@@ -23,6 +23,12 @@ match writer.
 
 **Spec:** `docs/superpowers/specs/2026-11-02-league-self-host-design.md`
 
+## Progress (2026-11-02)
+
+- Done: Task 0 (dump in `~/Backups/arcade-soccer`: 8 users, 8 teams, 26 matches), Task 1, Task 2, Task 9 Steps 1-2 (Step 3 needs the API).
+- Done except the parts that need the Go API: Task 7 (net.js, league-config.js, errorText, `test/net.test.mjs`; still to do: `scripts/dev-league.sh` and the Step 5 manual run), Task 8 (sim image builds and runs; api Dockerfile and `league-images.yml` written, api image build waits for Task 3).
+- Task 3 prep done: Go module, embedded schema, failing tests. Next: Task 3 with Soren (2-3 hours).
+
 ## Global Constraints
 
 - Local test/dev database: Docker container `league-pg` (`postgres:17`, `127.0.0.1:55432`, password `dev`, db `league_test`), so tests run the same major version as prod. Laptop Homebrew Postgres is 14 and cannot load 17 dumps.
@@ -126,7 +132,7 @@ Concepts to teach as you go: Go modules, `net/http` `ServeMux` method patterns
 interfaces for test fakes, and table-driven tests with `httptest`.
 
 **Files:**
-- Create: `server/api/go.mod` (module `github.com/iamsorenl/arcade-soccer/server/api`)
+- Already in place (prep, 2026-11-02): `server/go.mod` (module `github.com/iamsorenl/arcade-soccer/server`, pgx v5.12), `server/db/embed.go` (`db.Schema`, the embedded schema.sql), and the failing tests `server/api/testutil_test.go` + `server/api/auth_test.go` (checked against a throwaway implementation, then deleted)
 - Create: `server/api/main.go` (config from env, wiring, `ListenAndServe`)
 - Create: `server/api/app.go`:
   - `type App`
@@ -134,7 +140,7 @@ interfaces for test fakes, and table-driven tests with `httptest`.
   - CORS
   - `writeJSON` / `writeErr`
   - `/healthz`
-- Create: `server/api/db.go`: `//go:embed` of `../db/schema.sql` (copy it into `server/api/schema.sql` at build if embed can't reach the parent; the builder picks), plus `ApplySchema(ctx, pool) error`
+- Create: `server/api/db.go`: `ApplySchema(ctx context.Context, pool *pgxpool.Pool) error` runs `db.Schema`
 - Create: `server/api/auth.go`: tokens, sessions, rate limiter, `/auth/*`, `/me`, `requireUser`
 - Create: `server/api/mail.go`:
   - `type Mailer interface { SendLogin(ctx context.Context, to, link string) error }`
@@ -152,9 +158,11 @@ interfaces for test fakes, and table-driven tests with `httptest`.
   type App struct { DB *pgxpool.Pool; Mail Mailer; Sim Sim; Cfg Config; limit *limiter }
   func (a *App) requireUser(h func(w http.ResponseWriter, r *http.Request, userID string)) http.HandlerFunc
   func clientIP(r *http.Request, trustProxy bool) string // first X-Forwarded-For entry when trustProxy, else RemoteAddr host
+  func NewApp(db *pgxpool.Pool, mail Mailer, cfg Config) *App // tests build the app this way; Task 6 sets app.Sim
+  func hashToken(tok string) []byte // sha256 of the raw token string; tests insert rows with it
   ```
 
-  - `Sim` is defined in Task 6. Until then, a nil field is fine.
+  - Add the `Sim Sim` field in Task 6 (tests set `app.Sim = &fakeSim{...}`), not now.
 - Endpoints:
   - `POST /auth/start {email}` always returns 200 `{"sent": true}` for any valid-looking email, whether or not an account exists. It returns 400 for an empty or `@`-less email, and 429 `too many sign-in emails, try again later` once over the limit (3 per email per 15 min, 10 per IP per hour, in memory). It creates the `users` row on first verify, not here.
   - `POST /auth/verify {token}` → 200 `{"session": "<token>", "user": {"id", "email"}}` | 400 `link expired or already used, request a new one`
@@ -172,7 +180,7 @@ interfaces for test fakes, and table-driven tests with `httptest`.
   - `TestVerifyExpired`: a token with `expires_at` in the past → 400.
   - `TestMeRequiresSession`: no header, a garbage token, or an expired session → 401.
   - `TestSignout`: after signout, the same token → 401 on `/me`.
-- [ ] **Step 2:** Run `cd server/api && TEST_DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/league_test go test ./...`. Expected: FAIL (compile errors).
+- [ ] **Step 2:** Run `cd server && TEST_DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/league_test go test ./...`. Expected: FAIL (compile errors).
 - [ ] **Step 3:** Soren implements `main.go`, `app.go`, `db.go`, `mail.go` and `auth.go`, test by test, with the agent reviewing each one.
 - [ ] **Step 4:** Run the tests. Expected: PASS. `go vet ./...` is clean.
 - [ ] **Step 5: Commit.** `git commit -m "Add the Go API with magic-link sign-in and sessions"`
