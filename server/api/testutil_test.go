@@ -151,3 +151,63 @@ func signIn(t *testing.T, app *App, mail *fakeMailer, email string) (session str
 	}
 	return v.Session, v.User
 }
+
+// fakeSim stands in for the sim service. Fields are set before use and only
+// read afterwards, so it is safe for concurrent requests.
+type fakeSim struct {
+	result  SimResult // what Play returns
+	invalid bool      // Validate rejects every config
+	err     error     // both methods fail with this
+}
+
+func (f *fakeSim) Validate(_ context.Context, configs []json.RawMessage) ([]Validation, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	out := make([]Validation, len(configs))
+	for i := range out {
+		out[i] = Validation{OK: !f.invalid, Errors: []string{}}
+		if f.invalid {
+			out[i].Errors = []string{"bad config"}
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeSim) Play(_ context.Context, _, _ SimTeam, _ uint32) (SimResult, error) {
+	return f.result, f.err
+}
+
+// seedTeam inserts a user, profile, team (at elo) and session directly, and
+// returns the session token and team id.
+func seedTeam(t *testing.T, app *App, name string, elo int) (session, teamID string) {
+	t.Helper()
+	ctx := context.Background()
+	var userID string
+	err := app.DB.QueryRow(ctx, `insert into users (email) values ($1) returning id::text`, name+"@example.com").Scan(&userID)
+	if err == nil {
+		_, err = app.DB.Exec(ctx, `insert into profiles (id, username) values ($1, $2)`, userID, name)
+	}
+	if err == nil {
+		err = app.DB.QueryRow(ctx, `insert into teams (owner, name, config, elo) values ($1, $2, $3, $4) returning id::text`,
+			userID, name+" FC", `{"name":"`+name+`"}`, elo).Scan(&teamID)
+	}
+	if err == nil {
+		session = newToken()
+		_, err = app.DB.Exec(ctx, `insert into sessions (token_hash, user_id, expires_at) values ($1, $2, now() + interval '1 day')`,
+			hashToken(session), userID)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return session, teamID
+}
+
+func countRows(t *testing.T, app *App, sql string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := app.DB.QueryRow(context.Background(), sql, args...).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}

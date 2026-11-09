@@ -59,6 +59,7 @@ func main() {
 	}
 
 	app := NewApp(pool, mail, cfg)
+	app.Sim = newHTTPSim(cfg.SimURL)
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           app.Routes(),

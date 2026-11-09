@@ -22,6 +22,7 @@ type Config struct {
 type App struct {
 	DB    *pgxpool.Pool
 	Mail  Mailer
+	Sim   Sim
 	Cfg   Config
 	limit *limiter
 }
@@ -45,6 +46,7 @@ func (a *App) Routes() http.Handler {
 	mux.HandleFunc("POST /account/delete", a.requireUser(a.handleDeleteAccount))
 	mux.HandleFunc("GET /leaderboard", a.handleLeaderboard)
 	mux.HandleFunc("GET /matches", a.handleMatches)
+	mux.HandleFunc("POST /play", a.requireUser(a.handlePlay))
 	return a.cors(mux)
 }
 
