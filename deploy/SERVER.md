@@ -4,23 +4,27 @@ k3s (single node) in an LXD VM on mce-pc-server, public through Tailscale Funnel
 to NodePort 30080. Skeleton: nothing below has been run yet. Fill in the real
 URL and any changes as each step is done.
 
-## Setup checklist (Task 10) - not run yet
+## Setup checklist (Task 10)
 
-- [ ] 1. On mce-pc-server: create the VM and the backup mount.
+- [x] 1. On mce-pc-server (2026-11-09, as soren, no sudo needed): create the VM and the backup mount.
+  Backups live in `~soren/league-backups` on the host rather than `/srv`, because soren has no
+  passwordless sudo there.
 
   ```sh
   lxc launch ubuntu:24.04 league --vm -c limits.cpu=4 -c limits.memory=6GiB -d root,size=40GiB
-  mkdir -p /srv/league-backups
-  lxc config device add league backups disk source=/srv/league-backups path=/backups
+  mkdir -p ~/league-backups
+  lxc config device add league backups disk source=$HOME/league-backups path=/backups
   lxc exec league -- df -h /backups   # shows the mount
   ```
 
-- [ ] 2. In the VM: install k3s without Traefik.
+- [x] 2. In the VM (2026-11-09, k3s v1.37.2+k3s1): install k3s without Traefik.
 
   ```sh
-  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
-  kubectl get nodes   # Ready
+  lxc exec league -- sh -c 'curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --write-kubeconfig-mode 600" sh -'
+  lxc exec league -- k3s kubectl get nodes   # Ready
   ```
+
+  Tailscale 1.104.5 is installed in the VM (`curl -fsSL https://tailscale.com/install.sh | sh`).
 
 - [ ] 3. Tailnet policy (admin console): add `tag:league` with no outbound grants to
   other nodes, and a `nodeAttrs` entry with `"attr": ["funnel"]` for `tag:league`. Then in the VM:
