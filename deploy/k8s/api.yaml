@@ -1,0 +1,67 @@
+# Secret `league-api` (keys DATABASE_URL, SMTP_USER, SMTP_PASS) is created by
+# hand, see deploy/SERVER.md. No secret values belong in this file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: league-api
+  namespace: league
+data:
+  APP_URL: "https://iamsorenl.github.io/arcade-soccer/"
+  ALLOWED_ORIGINS: "https://iamsorenl.github.io"
+  SIM_URL: "http://sim:8081"
+  MAIL_FROM: "" # empty = the API builds "Arcade Soccer <SMTP_USER>"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  # Task 10 decides this: "true" only if Tailscale Funnel really sends
+  # X-Forwarded-For (otherwise clients could fake it to dodge the rate limit).
+  TRUST_PROXY: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: league
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # distroless nonroot
+      containers:
+        - name: api
+          # :latest + Always for now. For a real rollout pin to sha-<7>, e.g. ...-api:sha-1a2b3c4
+          image: ghcr.io/iamsorenl/arcade-soccer-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: league-api }
+            - secretRef: { name: league-api }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: league
+spec:
+  type: NodePort
+  selector: { app: api }
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080

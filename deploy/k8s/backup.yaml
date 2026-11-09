@@ -1,0 +1,42 @@
+# Nightly pg_dump into /backups in the VM (the host's /srv/league-backups).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: league
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pg-dump
+              image: postgres:17
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  pg_dump -Fc -h postgres -U postgres -d league -f "/backups/league-$(date +%F).dump"
+                  find /backups -name 'league-*.dump' -mtime +14 -delete
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: league-db, key: POSTGRES_PASSWORD }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              hostPath:
+                path: /backups
+                type: DirectoryOrCreate

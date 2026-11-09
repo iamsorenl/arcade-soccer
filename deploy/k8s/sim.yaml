@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sim
+  namespace: league
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: sim }
+  template:
+    metadata:
+      labels: { app: sim }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the `node` user in node:alpine
+      containers:
+        - name: sim
+          # :latest + Always for now. For a real rollout pin to sha-<7>, e.g. ...-sim:sha-1a2b3c4
+          image: ghcr.io/iamsorenl/arcade-soccer-sim:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8081 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8081 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sim
+  namespace: league
+spec:
+  type: ClusterIP
+  selector: { app: sim }
+  ports:
+    - port: 8081
+      targetPort: 8081
