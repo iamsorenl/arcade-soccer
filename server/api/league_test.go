@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// seedTeam inserts a user, profile and team directly, returning the team id.
-func seedTeam(t *testing.T, app *App, name string, elo int) string {
+// seedLeagueTeam inserts a user, profile and team directly, returning the team id.
+func seedLeagueTeam(t *testing.T, app *App, name string, elo int) string {
 	t.Helper()
 	ctx := context.Background()
 	var uid, tid string
@@ -41,9 +41,9 @@ func seedMatch(t *testing.T, app *App, a, b string, ago time.Duration) {
 
 func TestLeaderboardOrderAndShape(t *testing.T) {
 	app, _ := newTestApp(t)
-	seedTeam(t, app, "low", 900)
-	seedTeam(t, app, "high", 1200)
-	seedTeam(t, app, "mid", 1000)
+	seedLeagueTeam(t, app, "low", 900)
+	seedLeagueTeam(t, app, "high", 1200)
+	seedLeagueTeam(t, app, "mid", 1000)
 
 	rr := do(t, app, "GET", "/leaderboard", "", nil)
 	wantStatus(t, rr, 200)
@@ -82,8 +82,8 @@ func TestLeaderboardEmpty(t *testing.T) {
 
 func TestMatchesFilter(t *testing.T) {
 	app, _ := newTestApp(t)
-	a, b := seedTeam(t, app, "a", 1000), seedTeam(t, app, "b", 1000)
-	c, d := seedTeam(t, app, "c", 1000), seedTeam(t, app, "d", 1000)
+	a, b := seedLeagueTeam(t, app, "a", 1000), seedLeagueTeam(t, app, "b", 1000)
+	c, d := seedLeagueTeam(t, app, "c", 1000), seedLeagueTeam(t, app, "d", 1000)
 	seedMatch(t, app, a, b, time.Minute)
 	seedMatch(t, app, c, d, time.Second)
 
@@ -113,7 +113,7 @@ func TestMatchesBadTeam(t *testing.T) {
 
 func TestLimitClamp(t *testing.T) {
 	app, _ := newTestApp(t)
-	a, b := seedTeam(t, app, "a", 1000), seedTeam(t, app, "b", 1000)
+	a, b := seedLeagueTeam(t, app, "a", 1000), seedLeagueTeam(t, app, "b", 1000)
 	if _, err := app.DB.Exec(context.Background(), `
 		insert into matches (team_a, team_b, version_a, version_b, seed, score_a, score_b,
 			elo_delta_a, elo_delta_b, engine_version, config_a, config_b)
