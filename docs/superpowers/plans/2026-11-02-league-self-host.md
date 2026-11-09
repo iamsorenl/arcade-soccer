@@ -157,7 +157,7 @@ interfaces for test fakes, and table-driven tests with `httptest`.
   type Config struct { DatabaseURL, AppURL, SimURL, MailFrom, SMTPHost, SMTPUser, SMTPPass string; SMTPPort int; AllowedOrigins []string; TrustProxy bool; Port string }
   type App struct { DB *pgxpool.Pool; Mail Mailer; Sim Sim; Cfg Config; limit *limiter }
   func (a *App) requireUser(h func(w http.ResponseWriter, r *http.Request, userID string)) http.HandlerFunc
-  func clientIP(r *http.Request, trustProxy bool) string // first X-Forwarded-For entry when trustProxy, else RemoteAddr host
+  func clientIP(r *http.Request, trustProxy bool) string // last X-Forwarded-For entry (the one the proxy appended) when trustProxy, else RemoteAddr host
   func NewApp(db *pgxpool.Pool, mail Mailer, cfg Config) *App // tests build the app this way; Task 6 sets app.Sim
   func hashToken(tok string) []byte // sha256 of the raw token string; tests insert rows with it
   ```

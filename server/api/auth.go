@@ -57,6 +57,13 @@ func (l *limiter) allow(key string, max int, window time.Duration) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := time.Now()
+	if len(l.hits) > 10000 { // drop idle keys so the map can't grow forever
+		for k, ts := range l.hits {
+			if now.Sub(ts[len(ts)-1]) > ipWindow {
+				delete(l.hits, k)
+			}
+		}
+	}
 	recent := l.hits[key][:0]
 	for _, t := range l.hits[key] {
 		if now.Sub(t) < window {
@@ -71,13 +78,13 @@ func (l *limiter) allow(key string, max int, window time.Duration) bool {
 	return true
 }
 
-// clientIP is the first X-Forwarded-For entry when behind a trusted proxy,
-// else the TCP peer address.
+// clientIP is the last X-Forwarded-For entry when behind a trusted proxy (the
+// one that proxy appended; earlier entries are whatever the client sent and
+// can be forged), else the TCP peer address.
 func clientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			first, _, _ := strings.Cut(xff, ",")
-			return strings.TrimSpace(first)
+			return strings.TrimSpace(xff[strings.LastIndex(xff, ",")+1:])
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)

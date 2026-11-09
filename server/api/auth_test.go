@@ -177,3 +177,14 @@ func TestSignout(t *testing.T) {
 	wantStatus(t, do(t, app, "POST", "/auth/signout", session, nil), http.StatusOK)
 	wantError(t, do(t, app, "GET", "/me", session, nil), http.StatusUnauthorized, "not signed in")
 }
+
+func TestClientIPUsesProxyHop(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.Header.Set("X-Forwarded-For", "6.6.6.6, 203.0.113.9")
+	if got := clientIP(r, true); got != "203.0.113.9" {
+		t.Fatalf("trusted proxy: got %q, want the hop the proxy appended", got)
+	}
+	if got := clientIP(r, false); got != "192.0.2.1" {
+		t.Fatalf("no proxy: got %q, want RemoteAddr host", got)
+	}
+}
