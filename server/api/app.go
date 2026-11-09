@@ -43,6 +43,8 @@ func (a *App) Routes() http.Handler {
 	mux.HandleFunc("POST /profile", a.requireUser(a.handleCreateProfile))
 	mux.HandleFunc("PUT /team", a.requireUser(a.handlePublishTeam))
 	mux.HandleFunc("POST /account/delete", a.requireUser(a.handleDeleteAccount))
+	mux.HandleFunc("GET /leaderboard", a.handleLeaderboard)
+	mux.HandleFunc("GET /matches", a.handleMatches)
 	return a.cors(mux)
 }
 
