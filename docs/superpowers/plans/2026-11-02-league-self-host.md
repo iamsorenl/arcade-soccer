@@ -23,11 +23,12 @@ match writer.
 
 **Spec:** `docs/superpowers/specs/2026-11-02-league-self-host-design.md`
 
-## Progress (2026-11-02)
+## Progress (updated 2026-11-09)
 
-- Done: Task 0 (dump in `~/Backups/arcade-soccer`: 8 users, 8 teams, 26 matches), Task 1, Task 2, Task 9 Steps 1-2 (Step 3 needs the API).
-- Done except the parts that need the Go API: Task 7 (net.js, league-config.js, errorText, `test/net.test.mjs`; still to do: `scripts/dev-league.sh` and the Step 5 manual run), Task 8 (sim image builds and runs; api Dockerfile and `league-images.yml` written, api image build waits for Task 3).
-- Task 3 prep done: Go module, embedded schema, failing tests. Next: Task 3 with Soren (2-3 hours).
+- Done: Tasks 0-9 and the Task 11 manifests. On 2026-11-09 Soren asked Claude to finish the build instead of writing the Go himself (he's taking a Go course first), so Tasks 3-6 and 11 were built by Claude and subagents, not Soren.
+- Go API: 34 tests pass under `-race`. The API image builds (13 MB distroless). `scripts/dev-league.sh` runs the stack locally. The k8s manifests pass `kubeconform -strict`. `deploy/SERVER.md` is the runbook skeleton.
+- Browser end to end, on 2026-11-09, against the migrated data: the leaderboard matched the backup (8 teams), then sign-in link, publish + placement, reload stays signed in, challenge, and API down showing the maintenance copy all passed. This run found that the `index.html` CSP `connect-src` only allows Supabase, which is now a Task 12 step.
+- Left: Task 10 (server, needs Soren's okay), Task 11 Steps 1 and 3-5 (game Gmail, apply on the VM, backup drill), Task 12 (cutover), and pushing the branch for CI.
 
 ## Global Constraints
 
@@ -428,6 +429,7 @@ and liveness probes, CronJob, `kubectl rollout`.
 
 - [ ] **Step 1:** Run Task 0's dump again (fresh data). Run `scripts/migrate-from-supabase.sh` into the prod database (via `kubectl -n league port-forward svc/postgres 15432:5432`). Expected: counts match.
 - [ ] **Step 2:** Set `LEAGUE_API_URL` in `js/league-config.js` to the Funnel URL.
+  - In `index.html`, replace the Supabase origin in the CSP `connect-src` with the Funnel origin. Without this the browser blocks every API call and the League shows "under maintenance".
   - Delete `js/supabase-config.js` and the supabase-js path in `net.js`.
   - Disable `.github/workflows/keep-supabase-awake.yml` (delete the file).
   - Merge to main so Pages deploys.
