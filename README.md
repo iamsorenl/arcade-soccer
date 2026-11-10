@@ -12,8 +12,8 @@ An AI team is a **config document** run by the shared deterministic engine: form
 tactical weights, and per-player attribute splits under a shared point budget — no user
 code. Build yours in the Team Builder, test it locally (Watch = AI vs AI, Play = you vs it),
 then publish it to compete on an Elo ladder. Ranked matches are simulated **server-side**
-in a Supabase Edge Function that runs the very same `js/engine.js` and `js/team.js` the
-browser uses, so results are cheat-proof. A match row stores just seed + config snapshots
+by a small self-hosted server (`server/`) that runs the very same `js/engine.js` and
+`js/team.js` the browser uses, so results are cheat-proof. A match row stores just seed + config snapshots
 + score, which makes replays free: the browser re-runs the sim from the seed with
 rendering on. Matches recorded by an older engine version show a notice when replayed.
 
@@ -33,67 +33,38 @@ node test/team.test.mjs           # schema validation + budget + attribute plumb
 node test/elo.test.mjs            # Elo expected-score symmetry + K application
 ```
 
-## Supabase deploy (one-time, manual)
+## League server
 
-1. Create a project at https://supabase.com (any name). Email auth (magic links) is on by default.
-2. Install the CLI (`brew install supabase/tap/supabase`), then from the repo root:
-   ```sh
-   supabase login
-   supabase link --project-ref <YOUR-PROJECT-REF>
-   supabase db push                      # applies supabase/migrations/0001_init.sql
-   supabase functions deploy play-match  # bundles the fn + the shared js/ modules
-   ```
-   The function imports `js/engine.js` / `js/team.js` / `js/elo.js` by relative path;
-   if your CLI version refuses to bundle files outside `supabase/functions/`, copy the
-   modules the import graph pulls in (`engine`, `team`, `elo`, `ai`, `actions`,
-   `entities`, `physics`, `config`) into `supabase/functions/play-match/` and fix the
-   import paths.
-3. In Supabase **Settings → API**, copy the project URL and `anon` public key into
-   `js/supabase-config.js` (the anon key is public by design — RLS is the security
-   boundary), commit, and push. GitHub Pages serves the rest.
-4. In **Authentication → URL Configuration**, add your Pages URL
-   (`https://<user>.github.io/arcade-soccer/`) as a redirect URL so magic links
-   land back in the game.
+The League backend lives in `server/` and runs on a home server: k3s in an LXD VM,
+reachable publicly through Tailscale Funnel at `https://league.tail88a93f.ts.net`.
 
-## Seeding the ladder
+- `server/api/` — Go API (stdlib `net/http` + pgx): magic-link sign-in, 90-day sessions,
+  profiles, teams, leaderboard, match history, ranked play. Every write acts on the
+  signed-in user from the session, never on an id the client sends.
+- `server/sim/` — internal Node service that imports `js/engine.js`, `js/team.js` and
+  `js/elo.js` unchanged to validate configs and simulate ranked matches.
+- `server/db/schema.sql` — Postgres schema. `apply_match_result` writes a match and
+  both Elo updates atomically and enforces the 10 matches/hour cap.
+- `deploy/k8s/` — manifests; `deploy/SERVER.md` — the runbook (setup, deploy, logs,
+  backups, restore).
 
-An empty `teams` table isn't just a blank leaderboard: placement rates a new team
-against the *nearest-Elo teams in the table*, so with nothing in it, publishing places
-you against no one. `scripts/seed-league.mjs` fills it with seven house teams — the four
-builder presets plus Tiki-Taka, Counter Attack and Sunday League — then plays a
-round-robin so the ladder opens with real ratings, W-D-L and replayable history.
+`js/league-config.js` holds the API URL (keep the CSP `connect-src` in `index.html` in
+sync). If the server is down, the League shows "under maintenance" and the rest of the
+game keeps working.
+
+Local dev against a migrated copy of the data:
 
 ```sh
-SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-league.mjs           # seed
-SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-league.mjs --reset   # wipe and reseed
+scripts/dev-league.sh --seed ~/Backups/arcade-soccer   # Postgres + sim + API on :8080
 ```
 
-The key is in **Settings → API → service_role**. It bypasses RLS, so pass it on the
-command line only — never commit it, never put it in CI. Seeds are fixed, so a reseed
-reproduces the identical ladder.
+Server tests: `cd server && TEST_DATABASE_URL=... go test -race -p 1 ./...` and
+`node --test server/sim/sim.test.mjs`. CI runs them all
+(`.github/workflows/league-images.yml`) and publishes the api/sim images to GHCR on
+pushes to main.
 
-Each house team needs a bot auth user, because `teams.owner` is a NOT NULL unique FK to
-`profiles.id`, itself a FK to `auth.users.id`. They own usernames prefixed `house-` so
-the ladder doesn't read as having players it doesn't have. `--reset` deletes those users
-and the FK cascade clears their profiles, teams and matches.
-
-Match results go through the same `apply_match_result` RPC that `play-match` uses, so
-there's no second copy of the Elo or match-writing logic. `test/team.test.mjs` validates
-every house config against the schema and point budget, so a malformed archetype fails
-locally rather than against live data.
-
-## Keeping the project awake
-
-Free-tier Supabase projects pause after ~7 days with no requests, which takes the whole
-AI League offline — DNS stops resolving — until you restore it by hand from the
-dashboard. `.github/workflows/keep-supabase-awake.yml` pings the REST API every other
-day to reset that clock. It needs no secret (it reads the public anon key straight out
-of `js/supabase-config.js`) and **fails the run on a non-200**, so a paused project
-emails you instead of failing quietly.
-
-Two things it can't do for you: GitHub disables scheduled workflows after 60 days with
-no repo activity — re-enable from the Actions tab — and scheduled workflows only run
-from the default branch, so the file has to be on `main` to fire at all.
+The seven house teams (`scripts/house-teams.mjs`) are bot accounts with `house-*`
+usernames and undeliverable emails, so the ladder never looks empty.
 
 ## License
 

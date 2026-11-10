@@ -16,7 +16,7 @@ function el(tag, className, text) {
   return node;
 }
 
-let user = null;   // signed-in Supabase user (or null)
+let user = null;   // signed-in League user (or null)
 let myTeam = null; // the user's published team row (or null)
 
 function setStatus(text, isError = false) {

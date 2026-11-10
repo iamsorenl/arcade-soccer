@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { ATTR_BUDGET, PRESETS, attrTotal, defaultTeam, validateTeam } from '../js/team.js';
 import { simulateMatch } from '../js/engine.js';
-import { HOUSE_TEAMS } from '../scripts/seed-league.mjs';
+import { HOUSE_TEAMS } from '../scripts/house-teams.mjs';
 
 // Defaults and every preset must validate within the budget.
 assert.ok(validateTeam(defaultTeam()).ok, 'default team must validate');

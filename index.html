@@ -9,11 +9,10 @@
     headers, so a real Content-Security-Policy header isn't possible here —
     this <meta> tag is the only way to apply one. No inline <script> or
     inline event handlers exist in this codebase, so no 'unsafe-inline' is
-    needed for scripts. esm.sh is allowed because js/net.js dynamically
-    imports supabase-js from it; the Supabase project URL is allowed for the
-    actual API/auth/function calls it makes.
+    needed for scripts. connect-src allows the self-hosted League API
+    (js/league-config.js); keep the two in sync.
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; connect-src 'self' https://opiallhyhgfjlsfgzmmm.supabase.co https://esm.sh; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://league.tail88a93f.ts.net; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'none'">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>&#9917;</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -222,7 +221,7 @@
         <h2>Under the hood</h2>
         <p>
           The game is a static site (vanilla JS + Canvas). Accounts, the leaderboard, and ranked
-          simulation run on Supabase; the server runs the same engine code your browser does.
+          simulation run on a small self-hosted server; it runs the same engine code your browser does.
           Because every match is reproducible from its seed, replays need no video and the
           leaderboard needs no trust in players. Inspired by Berkeley Pac-Man capture tournaments —
           same agents, different weights, may the best config win.
