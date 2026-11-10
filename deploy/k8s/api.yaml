@@ -12,9 +12,9 @@ data:
   MAIL_FROM: "" # empty = the API builds "Arcade Soccer <SMTP_USER>"
   SMTP_HOST: "smtp.gmail.com"
   SMTP_PORT: "587"
-  # Task 10 decides this: "true" only if Tailscale Funnel really sends
-  # X-Forwarded-For (otherwise clients could fake it to dodge the rate limit).
-  TRUST_PROXY: "false"
+  # Checked 2026-11-09: Funnel replaces any client X-Forwarded-For with the real
+  # client IP (a spoofed 6.6.6.6 was dropped), so the last entry is trustworthy.
+  TRUST_PROXY: "true"
 ---
 apiVersion: apps/v1
 kind: Deployment

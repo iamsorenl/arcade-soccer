@@ -26,21 +26,27 @@ URL and any changes as each step is done.
 
   Tailscale 1.104.5 is installed in the VM (`curl -fsSL https://tailscale.com/install.sh | sh`).
 
-- [ ] 3. Tailnet policy (admin console): add `tag:league` with no outbound grants to
+- [x] 3. Tailnet policy (admin console): add `tag:league` with no outbound grants to
   other nodes, and a `nodeAttrs` entry with `"attr": ["funnel"]` for `tag:league`. Then in the VM:
 
   ```sh
   tailscale up --advertise-tags=tag:league --hostname=league
   ```
 
-- [ ] 4. Funnel to the NodePort.
+  Done 2026-11-09: `tagOwners` has `"tag:league": ["autogroup:admin"]`, `nodeAttrs` has
+  funnel for `tag:league`. No grant has `tag:league` as src, so it can't reach other nodes.
+  VM is `league` at 100.126.98.113.
+
+- [x] 4. Funnel to the NodePort.
 
   ```sh
   tailscale funnel --bg 30080
   ```
 
-  Funnel URL: `https://league.<tailnet>.ts.net` (fill in). Log one request and check
-  whether `X-Forwarded-For` is sent; set `TRUST_PROXY` in `deploy/k8s/api.yaml` to match.
+  Funnel URL: **`https://league.tail88a93f.ts.net`** (on since 2026-11-09).
+  Checked 2026-11-09: Funnel replaces any client `X-Forwarded-For` with the real client
+  IP, so `TRUST_PROXY` is `"true"`. Note: your own Mac (on this tailnet) can't resolve the
+  URL unless a grant lets members reach `tag:league`; the public internet can.
 
 ## Deploy (Task 11)
 
@@ -66,6 +72,24 @@ kubectl -n league get pods        # postgres, sim, api Running and Ready
 curl https://league.<tailnet>.ts.net/healthz
 ```
 
+### Current state (2026-11-09)
+
+Deployed and self-tested (sign-in, profile, team, play, CORS, delete; backup drill + test
+restore). Two live overrides differ from git until the noted step happens:
+
+- **Images:** GHCR has none yet (CI pushes only on main), so `:local` images were built on
+  the Mac (`docker build --platform linux/amd64 ...`), `docker save`d, copied in, and loaded
+  with `k3s ctr images import`. The api and sim Deployments are patched to
+  `image: ...:local` + `imagePullPolicy: Never`. A later `kubectl apply -f deploy/k8s/`
+  switches back to GHCR `:latest`, so only re-apply once the images exist there.
+- **Email:** on since 2026-11-10, sending as `playarcadesoccer@gmail.com` (Gmail app
+  password in Secret `league-api`, loaded by hand). Test sign-in email reached Soren's
+  inbox (not spam). To rotate the app password, recreate the Secret the same way and
+  `kubectl -n league rollout restart deploy/api`.
+
+The DB password was generated inside the VM and only lives in the `league-db` and
+`league-api` Secrets.
+
 ## Roll out a new image
 
 Images are `:latest` with `imagePullPolicy: Always`, so a restart pulls the newest.
@@ -88,21 +112,21 @@ kubectl -n league logs job/<job name>      # a backup run
 ## Backups
 
 The CronJob runs at 03:30 and writes `/backups/league-<date>.dump` in the VM
-(host: `/srv/league-backups`), deleting dumps older than 14 days.
+(host: `~/league-backups`), deleting dumps older than 14 days.
 
 Drill (run once after deploy, and after any change to the backup):
 
 ```sh
 kubectl -n league create job --from=cronjob/backup drill
 kubectl -n league logs job/drill
-ls -l /srv/league-backups          # on the host: a new dump
+ls -l ~/league-backups          # on the host: a new dump
 ```
 
 Restore into a scratch database (never straight over prod):
 
 ```sh
 kubectl -n league exec -it postgres-0 -- createdb -U postgres league_restore_check
-kubectl -n league exec -i postgres-0 -- pg_restore -U postgres -d league_restore_check --no-owner < /srv/league-backups/league-<date>.dump
+kubectl -n league exec -i postgres-0 -- pg_restore -U postgres -d league_restore_check --no-owner < ~/league-backups/league-<date>.dump
 kubectl -n league exec postgres-0 -- psql -U postgres -d league_restore_check -Atc "select count(*) from teams"
 kubectl -n league exec postgres-0 -- dropdb -U postgres league_restore_check
 ```
